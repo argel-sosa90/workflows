@@ -117,5 +117,11 @@ jobs:
             echo "::error::$WEBHOOK_KEY não encontrado no Infisical (ci, prod, pasta do repositório)"
             exit 1
           fi
-          curl -fsS -X POST "$webhook" -o /dev/null
-          echo "Deploy de ${{ inputs.image }} disparado no Dokploy"
+          # O Dokploy recusa webhooks com HTTP 301 (ex.: "Branch Not Match"), que o
+          # curl -f não trata como erro: exige 2xx
+          status=$(curl -sS -X POST "$webhook" -o /tmp/dokploy-response -w '%{http_code}')
+          if [ "${status:0:1}" != "2" ]; then
+            echo "::error::Dokploy respondeu HTTP $status: $(head -c 300 /tmp/dokploy-response)"
+            exit 1
+          fi
+          echo "Deploy de ${{ inputs.image }} disparado no Dokploy (HTTP $status)"
