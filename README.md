@@ -67,6 +67,8 @@ Repositório com mais de uma imagem (ex.: bills-manager): um workflow por
 imagem, cada um com o seu `paths` e o webhook da sua application. Os exemplos
 abaixo omitem o `on:` e o `permissions:`, que seguem o modelo acima:
 
+`.github/workflows/deploy-backend.yml`:
+
 ```yaml
 jobs:
   backend:
@@ -75,6 +77,12 @@ jobs:
       image: bills-manager-backend
       dockerfile: backend/Dockerfile
       webhook-key: DOKPLOY_WEBHOOK_URL_BACKEND
+```
+
+`.github/workflows/deploy-frontend.yml`:
+
+```yaml
+jobs:
   frontend:
     uses: argel-sosa90/workflows/.github/workflows/build-push-deploy.yml@main
     with:
