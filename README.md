@@ -26,6 +26,14 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # Só builda quando muda algo que entra na imagem (ver abaixo)
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Dockerfile'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -38,8 +46,26 @@ jobs:
       image: hostinger-lite
 ```
 
-Repositório com mais de uma imagem (ex.: bills-manager), um job por imagem,
-cada um com o webhook da sua application:
+### Filtro de caminhos
+
+O `paths` fica no workflow do app, porque é ele que reage ao push. Para
+decidir o que entra:
+
+- Dockerfile com `COPY` explícitos: liste exatamente o que ele copia, mais o
+  `Dockerfile`, o `.dockerignore` e o próprio workflow
+- Dockerfile com `COPY . .`: use `'**'` e exclua o que comprovadamente não
+  afeta o build (`!*.md`, `!docs/**`, `!openspec/**`, `!test/**`,
+  `!.claude/**`…). Exclua `!.github/**` e inclua de volta o próprio workflow
+  logo depois: no GitHub, a ordem dos padrões importa e o último que casa vence
+
+Na dúvida, deixe o arquivo disparar o build. O `workflow_dispatch` permite
+rodar à mão quando for preciso.
+
+### Mais de uma imagem
+
+Repositório com mais de uma imagem (ex.: bills-manager): um workflow por
+imagem, cada um com o seu `paths` e o webhook da sua application. Os exemplos
+abaixo omitem o `on:` e o `permissions:`, que seguem o modelo acima:
 
 ```yaml
 jobs:
