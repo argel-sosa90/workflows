@@ -38,9 +38,8 @@ jobs:
       image: hostinger-lite
 ```
 
-Repositório com mais de uma imagem (ex.: bills-manager), um job por imagem.
-Se as duas ficam no mesmo compose do Dokploy, o webhook é um só e cada job
-dispara um redeploy:
+Repositório com mais de uma imagem (ex.: bills-manager), um job por imagem,
+cada um com o webhook da sua application:
 
 ```yaml
 jobs:
@@ -49,12 +48,14 @@ jobs:
     with:
       image: bills-manager-backend
       dockerfile: backend/Dockerfile
+      webhook-key: DOKPLOY_WEBHOOK_URL_BACKEND
   frontend:
     uses: argel-sosa90/workflows/.github/workflows/build-push-deploy.yml@main
     with:
       image: bills-manager-frontend
       context: frontend
       build-args: VITE_BACKEND_URL=https://api.bills.asolutions.dev
+      webhook-key: DOKPLOY_WEBHOOK_URL_FRONTEND
 ```
 
 | Input | Padrão | Descrição |
@@ -71,22 +72,19 @@ sem ele, o workflow não consegue o token OIDC para entrar no Infisical.
 
 ## No Dokploy
 
-O app roda como serviço **Compose** (raw) apontando para a imagem, como no
-hostinger-lite. O Dokploy faz login no registry pelo registro global da
-organização (Settings → Registry), então nenhum serviço guarda credencial.
+O Dokploy faz login no registry pelo registro global da organização
+(Settings → Registry), então nenhum serviço guarda credencial. Duas formas
+validadas:
 
-```yaml
-services:
-  app:
-    image: registry.asolutions.dev/<image>:latest
-    # Obrigatório: o deploy de compose do Dokploy (v0.30.8) roda `up -d` sem
-    # --pull e, sem isto, reusa a imagem que já está no servidor
-    pull_policy: always
-```
-
-O webhook do workflow é o *Deploy webhook* do compose. Use o provider **Raw**:
-com o provider GitHub, o Dokploy recusa webhooks sem o payload de push do
-GitHub.
+- **Application com provider Docker** (preferida): imagem
+  `registry.asolutions.dev/<image>:latest` e **usuário e senha em branco**. O
+  Dokploy roda `docker pull` a cada deploy com o login global. O webhook é o
+  *Deploy webhook* da application, e cada application tem o seu (por isso o
+  bills-manager usa `webhook-key` diferentes).
+- **Compose (Raw)**, como o hostinger-lite. Exige `pull_policy: always` no
+  serviço: o deploy de compose do Dokploy (v0.30.8) roda `up -d` sem `--pull` e,
+  sem isso, reusa a imagem que já está no servidor. Use o provider Raw: com o
+  provider GitHub, o webhook exige o payload de push do GitHub.
 
 ## Configuração (uma vez)
 
