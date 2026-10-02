@@ -91,8 +91,8 @@ sem ele, o workflow não consegue o token OIDC para entrar no Infisical.
    repositórios desta conta autenticam.
 
    Papel **Viewer** só no projeto `ci`.
-3. Preencha em `build-push-deploy.yml` o `INFISICAL_IDENTITY_ID` (ID da
-   identidade) e o `INFISICAL_PROJECT_ID` (ID do projeto `ci`). Não são segredos.
+3. `INFISICAL_IDENTITY_ID` (ID da identidade) e `INFISICAL_PROJECT_ID` (ID do
+   projeto `ci`) ficam no topo de `build-push-deploy.yml`. Não são segredos.
 
 ## Atualizações
 

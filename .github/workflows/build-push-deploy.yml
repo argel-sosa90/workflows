@@ -51,8 +51,8 @@ on:
 env:
   REGISTRY_URL: registry.asolutions.dev
   # IDs do Infisical (não são segredos): identidade "github-actions" e projeto "ci"
-  INFISICAL_IDENTITY_ID: PREENCHER-IDENTITY-ID
-  INFISICAL_PROJECT_ID: PREENCHER-PROJECT-ID
+  INFISICAL_IDENTITY_ID: ef26d970-c6b6-4f95-977e-b7fe9f8c8070
+  INFISICAL_PROJECT_ID: 2ae4389f-61ea-4996-9f5d-1aea998bd0ab
 
 jobs:
   build-push-deploy:
