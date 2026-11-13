@@ -104,6 +104,12 @@ jobs:
 O `permissions` com `id-token: write` no repositório que chama é obrigatório:
 sem ele, o workflow não consegue o token OIDC para entrar no Infisical.
 
+Todo build recebe também `APP_RELEASE=<SHA curto do commit>`, sem precisar
+passar nada: o contexto do build não leva o `.git`, e é a versão que o app usa
+nos eventos do GlitchTip (`<serviço>@<sha>`). Para usar, declare
+`ARG APP_RELEASE` no estágio de build do Dockerfile; quem não declara não é
+afetado. Um `APP_RELEASE` em `build-args` vence o automático.
+
 ## No Dokploy
 
 O Dokploy faz login no registry pelo registro global da organização
