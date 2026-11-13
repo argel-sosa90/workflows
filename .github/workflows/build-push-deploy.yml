@@ -1,0 +1,121 @@
+# Build da imagem Docker, push para o registry self-hosted e deploy no Dokploy.
+#
+# Reutilizado pelos repositórios de argel-sosa90 (ver README). Os segredos vêm do
+# Infisical, projeto "ci", environment "prod", por OIDC: nada fica guardado nos
+# secrets do GitHub.
+#
+#   /                 REGISTRY_USERNAME, REGISTRY_PASSWORD
+#   /<repositório>    DOKPLOY_WEBHOOK_URL (ou a chave indicada em webhook-key)
+#
+# Actions na major mais recente (tags móveis @vN). O secrets-action do Infisical
+# não publica tag de major: fixado na última versão e atualizado à mão.
+#
+# Sem cache de build de propósito: o cache do GitHub Actions consome a cota do
+# plano gratuito.
+
+name: Build, push e deploy
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Nome da imagem no registry (registry.asolutions.dev/<image>)
+        required: true
+        type: string
+      context:
+        description: Contexto do build
+        required: false
+        type: string
+        default: .
+      dockerfile:
+        description: Caminho do Dockerfile (padrão <context>/Dockerfile)
+        required: false
+        type: string
+        default: ""
+      build-args:
+        description: Build args, um KEY=valor por linha
+        required: false
+        type: string
+        default: ""
+      secret-path:
+        description: Pasta do repositório no projeto ci do Infisical (padrão /<nome do repositório>)
+        required: false
+        type: string
+        default: ""
+      webhook-key:
+        description: Chave do webhook do Dokploy dentro da pasta do repositório
+        required: false
+        type: string
+        default: DOKPLOY_WEBHOOK_URL
+
+env:
+  REGISTRY_URL: registry.asolutions.dev
+  # IDs do Infisical (não são segredos): identidade "github-actions" e projeto "ci"
+  INFISICAL_IDENTITY_ID: PREENCHER-IDENTITY-ID
+  INFISICAL_PROJECT_ID: PREENCHER-PROJECT-ID
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    # Um deploy por imagem de cada vez; um push novo cancela o build anterior
+    concurrency:
+      group: deploy-${{ github.repository }}-${{ inputs.image }}
+      cancel-in-progress: true
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Segredos compartilhados (Infisical ci:/)
+        uses: Infisical/secrets-action@v1.0.18
+        with:
+          method: oidc
+          identity-id: ${{ env.INFISICAL_IDENTITY_ID }}
+          project-id: ${{ env.INFISICAL_PROJECT_ID }}
+          env-slug: prod
+          secret-path: /
+
+      - name: Segredos do repositório (Infisical ci:/<repositório>)
+        uses: Infisical/secrets-action@v1.0.18
+        with:
+          method: oidc
+          identity-id: ${{ env.INFISICAL_IDENTITY_ID }}
+          project-id: ${{ env.INFISICAL_PROJECT_ID }}
+          env-slug: prod
+          secret-path: ${{ inputs.secret-path || format('/{0}', github.event.repository.name) }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login no registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY_URL }}
+          username: ${{ env.REGISTRY_USERNAME }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+
+      - name: Build e push
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile || format('{0}/Dockerfile', inputs.context) }}
+          build-args: ${{ inputs.build-args }}
+          push: true
+          # latest é o que o Dokploy puxa; a tag do commit permite voltar a uma versão
+          tags: |
+            ${{ env.REGISTRY_URL }}/${{ inputs.image }}:latest
+            ${{ env.REGISTRY_URL }}/${{ inputs.image }}:sha-${{ github.sha }}
+
+      - name: Deploy no Dokploy
+        env:
+          WEBHOOK_KEY: ${{ inputs.webhook-key }}
+        run: |
+          webhook="${!WEBHOOK_KEY:-}"
+          if [ -z "$webhook" ]; then
+            echo "::error::$WEBHOOK_KEY não encontrado no Infisical (ci, prod, pasta do repositório)"
+            exit 1
+          fi
+          curl -fsS -X POST "$webhook" -o /dev/null
+          echo "Deploy de ${{ inputs.image }} disparado no Dokploy"
